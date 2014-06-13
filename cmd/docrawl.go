@@ -99,10 +99,14 @@ func (j jsonWriter) Ext() string {
 func (j jsonWriter) Write(w io.Writer, cr *crawler.Result) error {
 	var err error
 	var bs []byte
+	toplevel := map[string]interface{}{
+		"root":  cr.Root().URL().String(),
+		"pages": cr.LookupTable(),
+	}
 	if *pretty {
-		bs, err = json.MarshalIndent(cr.LookupTable(), "", "  ")
+		bs, err = json.MarshalIndent(toplevel, "", "  ")
 	} else {
-		bs, err = json.Marshal(cr.LookupTable())
+		bs, err = json.Marshal(toplevel)
 	}
 	if err != nil {
 		return err
