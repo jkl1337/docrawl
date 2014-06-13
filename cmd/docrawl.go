@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -23,7 +24,7 @@ var (
 	outputName   = flag.String("o", "", "Output filename, defaults to crawled hostname")
 )
 
-type ResultWriter interface {
+type ResultFormatter interface {
 	Ext() string
 	Write(w io.Writer, cr *crawler.Result) error
 }
@@ -35,7 +36,7 @@ func main() {
 	}
 	flag.Parse()
 
-	var serializer ResultWriter
+	var serializer ResultFormatter
 	switch *outputFormat {
 	case "json":
 		serializer = jsonWriter{}
@@ -178,7 +179,20 @@ func (j dotWriter) Write(w io.Writer, cr *crawler.Result) (err error) {
 	labelCount++
 	walkPage(r)
 
-	// TODO: graphviz panics for errors, so trap it here
+	// sigh, gographviz leaks panics
+	defer func() {
+		if r := recover(); r != nil {
+			switch e := r.(type) {
+			case error:
+				err = e
+			case string:
+				err = errors.New(e)
+			default:
+				err = errors.New("unknown graphviz panic")
+			}
+		}
+	}()
 	_, err = w.Write([]byte(g.String()))
-	return err
+
+	return
 }
