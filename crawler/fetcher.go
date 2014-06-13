@@ -10,7 +10,7 @@ import (
 
 // FetchPageHTTP is a simple http only crawler fetcher. It populates the Page Assets by
 // scraping the page with the standard golang HTML parser.
-func FetchPageHTTP(p *Page) []*url.URL {
+func FetchPageHTTP(p Page) []*url.URL {
 	res, err := http.Get(p.URL().String())
 	if err != nil {
 		p.SetError(err)

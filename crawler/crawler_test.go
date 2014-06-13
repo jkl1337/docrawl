@@ -26,12 +26,12 @@ func mapURLs(b *url.URL, raw []string) (urls []*url.URL) {
 	return
 }
 
-func TestnewPageMap(t *testing.T) {
+func TestNewPageMap(t *testing.T) {
 	pm := newPageMap("")
 	assert.NotNil(t, pm.pages)
 }
 
-func TestpageMap_getPages(t *testing.T) {
+func TestPageMapGetPages(t *testing.T) {
 	links := mapURLs(nil, []string{
 		"http://testhost.local/page1.html",
 		"http://testhost.local/page2.html?query3#anchor",
@@ -85,7 +85,7 @@ var pages = map[string][]string{
 func TestCrawlerErrors(t *testing.T) {
 	var numFetches uint32
 
-	fetcher := func(p *Page) []*url.URL {
+	fetcher := func(p Page) []*url.URL {
 		atomic.AddUint32(&numFetches, 1)
 		return nil
 	}
@@ -101,7 +101,7 @@ func TestCrawler(t *testing.T) {
 	baseURL, _ := url.Parse("http://testhost.local/")
 
 	var numFetches uint32
-	fetcher := func(p *Page) []*url.URL {
+	fetcher := func(p Page) []*url.URL {
 		atomic.AddUint32(&numFetches, 1)
 		links := pages[p.URL().RequestURI()]
 		if links == nil {
@@ -122,14 +122,14 @@ func TestCrawler(t *testing.T) {
 		assert.Equal(t, len(pages), len(cr.LookupTable()), "the lookup table is complete")
 		assert.Equal(t, baseURL.String(), cr.Root().URL().String(), "the root URL is corect")
 
-		visited := map[*Page]bool{}
-		var cmpTree func(p *Page)
-		cmpTree = func(p *Page) {
+		visited := map[Page]bool{}
+		var cmpTree func(p Page)
+		cmpTree = func(p Page) {
 			visited[p] = true
 			expected := pages[p.URL().RequestURI()]
 			assert.NotNil(t, expected)
 
-			for i, lp := range p.AllLinks() {
+			for i, lp := range p.Links() {
 				assert.Equal(t, expected[i], lp.URL().RequestURI())
 				if !visited[lp] {
 					cmpTree(lp)
@@ -144,7 +144,7 @@ func TestCrawlerConcurrency(t *testing.T) {
 	var numConcurrent, maxConcurrent int32
 	baseURL, _ := url.Parse("http://testhost.local/")
 
-	fetcher := func(p *Page) []*url.URL {
+	fetcher := func(p Page) []*url.URL {
 		cur := atomic.AddInt32(&numConcurrent, 1)
 		for {
 			old := atomic.SwapInt32(&maxConcurrent, cur)
@@ -164,12 +164,12 @@ func TestCrawlerConcurrency(t *testing.T) {
 		return mapURLs(p.URL(), links)
 	}
 
-	c := NewCrawler(3, fetcher)
+	c := NewCrawler(5, fetcher)
 	c.Crawl(baseURL.String())
 
 	assert.Equal(t, len(pages), numFetches, "all pages were fetched")
 	assert.Condition(t, func() bool {
-		return !(maxConcurrent > 3 || maxConcurrent < 2)
-	}, "maximum concurrency outside of specification (2 <= %v <= 3)", maxConcurrent)
+		return !(maxConcurrent > 5 || maxConcurrent < 4)
+	}, "maximum concurrency outside of specification (4 <= %v <= 5)", maxConcurrent)
 
 }

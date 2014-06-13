@@ -10,7 +10,7 @@ const defaultMaxRequests = 2
 // Fetcher is a function type that can fetch and fill out Page structures by some means.
 // The return value is slice of links. The crawler will then build the links in the page at
 // some time.
-type Fetcher func(p *Page) []*url.URL
+type Fetcher func(p Page) []*url.URL
 
 // Asset is a URL to a page asset (img, css, script)
 type Asset *url.URL
@@ -23,19 +23,20 @@ type Crawler struct {
 
 // PageRecord is a marshalable record of a page with references only by string.
 type PageRecord struct {
-	Links  []string `json:"links"`
-	Assets []string `json:"assets"`
+	Links  []string `json:"links,omitempty"`
+	Assets []string `json:"assets,omitempty"`
+	Error  string   `json:"error,omitempty"`
 }
 
 // Result provides access to the result of a crawl.
 type Result struct {
-	root   *Page
-	pages  map[string]*Page
+	root   Page
+	pages  map[string]Page
 	lookup map[string]PageRecord
 }
 
 // Root returns the root page for the crawl.
-func (cr *Result) Root() *Page {
+func (cr *Result) Root() Page {
 	return cr.root
 }
 
@@ -46,15 +47,19 @@ func (cr *Result) LookupTable() map[string]PageRecord {
 	}
 	cr.lookup = map[string]PageRecord{}
 	for _, p := range cr.pages {
-		pr := PageRecord{
-			Links:  make([]string, len(p.AllLinks())),
-			Assets: make([]string, len(p.Assets())),
-		}
-		for i, a := range p.Assets() {
-			pr.Assets[i] = (*url.URL)(a).String()
-		}
-		for i, l := range p.AllLinks() {
-			pr.Links[i] = l.URL().String()
+		pr := PageRecord{}
+		if p.Error() == nil {
+			pr.Links = make([]string, len(p.Links()))
+			pr.Assets = make([]string, len(p.Assets()))
+
+			for i, a := range p.Assets() {
+				pr.Assets[i] = (*url.URL)(a).String()
+			}
+			for i, l := range p.Links() {
+				pr.Links[i] = l.URL().String()
+			}
+		} else {
+			pr.Error = p.Error().Error()
 		}
 		cr.lookup[p.URL().String()] = pr
 	}
@@ -69,13 +74,13 @@ type sentinel struct{}
 type pageMap struct {
 	host  string
 	lock  sync.Mutex
-	pages map[string]*Page
+	pages map[string]Page
 }
 
 func newPageMap(host string) *pageMap {
 	return &pageMap{
 		host:  host,
-		pages: make(map[string]*Page),
+		pages: make(map[string]Page),
 	}
 }
 
@@ -84,7 +89,7 @@ func newPageMap(host string) *pageMap {
 // same length as links and contains a page instance for every link. The
 // second slice returned is a subset of the elements of the first slice,
 // containing all newly initialized pages.
-func (pm *pageMap) getPages(links []*url.URL) ([]*Page, []*Page) {
+func (pm *pageMap) getPages(links []*url.URL) ([]Page, []Page) {
 	keys := make([]string, 0, len(links))
 	for _, l := range links {
 		if l.Host == pm.host {
@@ -92,15 +97,15 @@ func (pm *pageMap) getPages(links []*url.URL) ([]*Page, []*Page) {
 		}
 	}
 
-	pages := make([]*Page, len(keys))
-	newPages := make([]*Page, 0)
+	pages := make([]Page, len(keys))
+	newPages := make([]Page, 0)
 
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 	for i, k := range keys {
 		page := pm.pages[k]
 		if page == nil {
-			page = NewPage(links[i])
+			page = newEagerPage(links[i])
 			pm.pages[k] = page
 			newPages = append(newPages, page)
 		}
@@ -146,7 +151,7 @@ func (c *Crawler) Crawl(rootURL string) (*Result, error) {
 		cs.fetchSemaphore <- sentinel{}
 	}
 
-	rootPage := NewPage(u)
+	rootPage := newEagerPage(u)
 	cs.pageMap.pages[u.RequestURI()] = rootPage
 	cs.fetchPage(rootPage)
 
@@ -157,7 +162,7 @@ func (c *Crawler) Crawl(rootURL string) (*Result, error) {
 	}, nil
 }
 
-func (cs *crawlerState) fetchPage(p *Page) {
+func (cs *crawlerState) fetchPage(p Page) {
 	cs.wg.Add(1)
 	<-cs.fetchSemaphore
 	go func() {
@@ -167,7 +172,7 @@ func (cs *crawlerState) fetchPage(p *Page) {
 
 		if len(links) >= 1 {
 			linked, unfetched := cs.pageMap.getPages(links)
-			p.linked = linked
+			p.(*page).linked = linked
 			for _, np := range unfetched {
 				cs.fetchPage(np)
 			}

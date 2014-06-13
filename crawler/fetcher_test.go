@@ -52,7 +52,7 @@ func TestFetchPageHTTP(t *testing.T) {
 		defer ts.Close()
 
 		baseURL, _ := url.Parse(ts.URL)
-		p := NewPage(baseURL)
+		p := newEagerPage(baseURL)
 		links := FetchPageHTTP(p)
 
 		if tt.error != "" {

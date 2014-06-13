@@ -55,7 +55,7 @@ func main() {
 
 	fetcher := crawler.FetchPageHTTP
 	if *verbose {
-		fetcher = func(p *crawler.Page) []*url.URL {
+		fetcher = func(p crawler.Page) []*url.URL {
 			log.Println("Fetching:", p.URL().String())
 			return crawler.FetchPageHTTP(p)
 		}
@@ -117,7 +117,7 @@ func (j dotWriter) Ext() string {
 	return "dot"
 }
 
-func nodeLabel(p *crawler.Page) string {
+func nodeLabel(p crawler.Page) string {
 	abuf := make([]string, 0)
 	for _, a := range p.Assets() {
 		abuf = append(abuf, (*url.URL)(a).String())
@@ -127,8 +127,7 @@ func nodeLabel(p *crawler.Page) string {
 	return fmt.Sprintf("{%s|%s}", p.URL().String(), assetsStr)
 }
 
-func (j dotWriter) Write(w io.Writer, cr *crawler.Result) error {
-	var err error
+func (j dotWriter) Write(w io.Writer, cr *crawler.Result) (err error) {
 	name := cr.Root().URL().Host
 
 	g := gv.NewEscape()
@@ -136,23 +135,23 @@ func (j dotWriter) Write(w io.Writer, cr *crawler.Result) error {
 	g.SetName(name)
 
 	labelCount := 1
-	visited := map[*crawler.Page]int{}
+	visited := map[crawler.Page]int{}
 
-	pageID := func(p *crawler.Page) string {
+	pageID := func(p crawler.Page) string {
 		return "P" + strconv.FormatInt(int64(visited[p]), 10)
 	}
 
-	var walkPage func(p *crawler.Page)
-	walkPage = func(p *crawler.Page) {
+	var walkPage func(p crawler.Page)
+	walkPage = func(p crawler.Page) {
 		nodeAttrs := map[string]string{
 			"shape": "record",
 			"label": nodeLabel(p),
 		}
 		g.AddNode(name, pageID(p), nodeAttrs)
 
-		edges := map[*crawler.Page]int{}
+		edges := map[crawler.Page]int{}
 
-		for _, lp := range p.AllLinks() {
+		for _, lp := range p.Links() {
 			edges[lp]++
 			if visited[lp] == 0 {
 				visited[lp] = labelCount
