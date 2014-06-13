@@ -53,6 +53,7 @@ func TestBroken(t *testing.T) {
 	assert.Equal(t, 2, len(r.Root().Links()))
 
 	assert.NotNil(t, r.Root().Links()[1].Error(), "expect page error for broken link")
+	testOutputResult(t, ts.URL, "broken", r)
 }
 
 func TestCircular(t *testing.T) {
