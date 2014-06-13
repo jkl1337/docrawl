@@ -49,14 +49,14 @@ func FetchPageHTTP(p Page) []*url.URL {
 	})
 
 	assets := make([]Asset, 0)
-	assetSels := map[string]string{
-		"img[src]":    "src",
-		"script[src]": "src",
-		"link[href]":  "href",
+	assetSels := [][2]string{
+		{"script[src]", "src"},
+		{"link[href]", "href"},
+		{"img[src]", "src"},
 	}
-	for selStr, attr := range assetSels {
-		doc.Find(selStr).Each(func(n int, s *goquery.Selection) {
-			src, _ := s.Attr(attr)
+	for _, selInfo := range assetSels {
+		doc.Find(selInfo[0]).Each(func(n int, s *goquery.Selection) {
+			src, _ := s.Attr(selInfo[1])
 			if len(src) == 0 {
 				return
 			}
