@@ -65,7 +65,7 @@ func (p *page) Links() []Page {
 }
 
 func (p *page) GenerateLinks() <-chan Page {
-	pages := make(chan Page, 10)
+	pages := make(chan Page, 32)
 	go func() {
 		for _, v := range p.linked {
 			pages <- v
