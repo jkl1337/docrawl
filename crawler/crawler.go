@@ -147,9 +147,6 @@ func (c *Crawler) Crawl(rootURL string) (*Result, error) {
 		pageMap:        newPageMap(u.Host),
 		fetcher:        c.fetcher,
 	}
-	for i := 0; i < c.maxRequests; i++ {
-		cs.fetchSemaphore <- sentinel{}
-	}
 
 	rootPage := newEagerPage(u)
 	cs.pageMap.pages[u.RequestURI()] = rootPage
@@ -164,11 +161,11 @@ func (c *Crawler) Crawl(rootURL string) (*Result, error) {
 
 func (cs *crawlerState) fetchPage(p Page) {
 	cs.wg.Add(1)
-	<-cs.fetchSemaphore
+	cs.fetchSemaphore <- sentinel{}
 	go func() {
 		links := cs.fetcher(p)
 
-		cs.fetchSemaphore <- sentinel{}
+		<-cs.fetchSemaphore
 
 		if len(links) >= 1 {
 			linked, unfetched := cs.pageMap.getPages(links)

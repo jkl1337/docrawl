@@ -73,13 +73,15 @@ var pages = map[string][]string{
 	"/page3.html":  {"/page4.html", ""},
 	"/page4.html":  {"/page5.html", "/page1.html"},
 	"/page5.html":  {"/page2.html", "/page6.html"},
-	"/page6.html":  {"/page7.html", "/page8.html", "/page9.html", "/page10.html", "/page11.html", "/page12.html"},
+	"/page6.html":  {"/page7.html", "/page8.html", "/page9.html", "/page10.html", "/page11.html", "/page12.html", "/page13.html", "/page14.html"},
 	"/page7.html":  {},
 	"/page8.html":  {},
 	"/page9.html":  {},
 	"/page10.html": {},
 	"/page11.html": {},
 	"/page12.html": {},
+	"/page13.html": {},
+	"/page14.html": {},
 }
 
 func TestCrawlerErrors(t *testing.T) {
@@ -164,12 +166,9 @@ func TestCrawlerConcurrency(t *testing.T) {
 		return mapURLs(p.URL(), links)
 	}
 
-	c := NewCrawler(5, fetcher)
+	c := NewCrawler(6, fetcher)
 	c.Crawl(baseURL.String())
 
 	assert.Equal(t, len(pages), numFetches, "all pages were fetched")
-	assert.Condition(t, func() bool {
-		return !(maxConcurrent > 5 || maxConcurrent < 4)
-	}, "maximum concurrency outside of specification (4 <= %v <= 5)", maxConcurrent)
-
+	assert.Equal(t, 6, maxConcurrent, "request concurrency is within limits")
 }
